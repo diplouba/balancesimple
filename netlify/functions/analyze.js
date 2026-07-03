@@ -2,10 +2,10 @@
 // Analiza EECC con prompt de experto financiero y fallback automático de modelos.
 
 const FREE_MODELS = [
-  "google/gemini-2.0-flash-exp:free",
-  "google/gemini-flash-1.5-8b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "mistralai/mistral-7b-instruct:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "poolside/laguna-m.1:free",
 ];
 
 const PAID_MODELS = [
