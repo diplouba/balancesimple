@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BalanceSimple — Análisis Financiero Experto</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --ink: #1a1a2e;
+  --ink-light: #4a4a6a;
+  --paper: #f7f6f2;
+  --paper-dark: #ece9e2;
+  --accent: #2563eb;
+  --accent-soft: #dbeafe;
+  --ok: #16a34a;
+  --ok-soft: #dcfce7;
+  --warn: #d97706;
+  --warn-soft: #fef3c7;
+  --danger: #dc2626;
+  --danger-soft: #fee2e2;
+  --border: #d4d0c8;
+  --radius: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; display: flex; flex-direction: column; }
+
+header { background: var(--ink); color: #fff; padding: 28px 40px 24px; display: flex; align-items: flex-end; gap: 16px; }
+.logo-block { flex: 1; }
+.logo-eyebrow { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #8888aa; margin-bottom: 4px; }
+.logo-name { font-family: 'DM Serif Display', serif; font-size: 2rem; line-height: 1; color: #fff; }
+.logo-name em { font-style: italic; color: #93c5fd; }
+.logo-tagline { font-size: 12px; color: #8888aa; margin-top: 6px; font-weight: 300; }
+.header-badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; background: #2563eb22; border: 1px solid #2563eb55; color: #93c5fd; padding: 4px 10px; border-radius: 4px; }
+
+main { flex: 1; max-width: 820px; margin: 0 auto; padding: 48px 24px; width: 100%; }
+
+.model-section { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 24px; }
+.section-label { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-light); display: block; margin-bottom: 12px; }
+.model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 520px) { .model-grid { grid-template-columns: 1fr; } }
+.model-card { border: 2px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; display: flex; align-items: flex-start; gap: 10px; text-align: left; background: transparent; }
+.model-card:hover, .model-card.selected { border-color: var(--accent); background: var(--accent-soft); }
+.model-badge { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; white-space: nowrap; margin-top: 2px; flex-shrink: 0; }
+.model-badge.free { background: var(--ok-soft); color: var(--ok); }
+.model-badge.paid { background: var(--warn-soft); color: var(--warn); }
+.model-info { flex: 1; min-width: 0; }
+.model-name { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.model-desc { font-size: 11px; color: var(--ink-light); line-height: 1.4; }
+.model-used-note { display: none; font-size: 11px; color: var(--ink-light); margin-top: 10px; font-style: italic; }
+.model-used-note.visible { display: block; }
+
+.upload-section { margin-bottom: 32px; }
+.drop-zone { border: 2px dashed var(--border); border-radius: var(--radius); background: #fff; padding: 48px 24px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; position: relative; }
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+.drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-icon { font-size: 2.5rem; margin-bottom: 12px; display: block; }
+.drop-text-main { font-family: 'DM Serif Display', serif; font-size: 1.1rem; color: var(--ink); margin-bottom: 4px; }
+.drop-text-sub { font-size: 12px; color: var(--ink-light); }
+.file-selected { display: none; align-items: center; gap: 10px; justify-content: center; padding: 16px; background: var(--ok-soft); border: 2px solid var(--ok); border-radius: var(--radius); }
+.file-selected.visible { display: flex; }
+.file-selected-name { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ok); font-weight: 500; }
+
+.btn-analyze { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 16px 24px; font-family: 'Inter', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; margin-top: 16px; letter-spacing: 0.02em; }
+.btn-analyze:hover:not(:disabled) { background: #1d4ed8; }
+.btn-analyze:active:not(:disabled) { transform: scale(0.99); }
+.btn-analyze:disabled { background: #93c5fd; cursor: not-allowed; }
+
+.loading-bar { display: none; margin-top: 20px; background: var(--paper-dark); border-radius: 4px; height: 4px; overflow: hidden; }
+.loading-bar.active { display: block; }
+.loading-fill { height: 100%; background: var(--accent); border-radius: 4px; animation: load 2.5s ease-in-out infinite; width: 40%; }
+@keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
+.loading-msg { display: none; text-align: center; font-size: 13px; color: var(--ink-light); margin-top: 10px; font-style: italic; }
+.loading-msg.active { display: block; }
+
+.error-box { display: none; background: var(--danger-soft); border: 1px solid var(--danger); border-radius: var(--radius); padding: 16px 20px; margin-top: 16px; font-size: 13px; color: var(--danger); line-height: 1.5; white-space: pre-wrap; }
+.error-box.visible { display: block; }
+
+#results { display: none; }
+#results.visible { display: block; }
+.results-divider { border: none; border-top: 2px solid var(--border); margin: 40px 0; }
+
+/* PERIODO HEADER */
+.periodo-header { display: flex; gap: 12px; margin-bottom: 28px; align-items: center; flex-wrap: wrap; }
+.periodo-badge { font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 20px; }
+.periodo-actual { background: var(--accent); color: #fff; }
+.periodo-anterior { background: var(--paper-dark); color: var(--ink-light); border: 1px solid var(--border); }
+.periodo-label { font-family: 'DM Serif Display', serif; font-size: 1.6rem; color: var(--ink); flex: 1; }
+
+/* ALERTS */
+.alerts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 32px; }
+.alert-card { border-radius: var(--radius); padding: 16px 18px; border-left: 4px solid; }
+.alert-card.ok     { background: var(--ok-soft);     border-color: var(--ok); }
+.alert-card.warn   { background: var(--warn-soft);   border-color: var(--warn); }
+.alert-card.danger { background: var(--danger-soft); border-color: var(--danger); }
+.alert-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+.alert-label { font-size: 10px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; }
+.alert-card.ok .alert-label     { color: var(--ok); }
+.alert-card.warn .alert-label   { color: var(--warn); }
+.alert-card.danger .alert-label { color: var(--danger); }
+.alert-variacion { font-size: 10px; font-weight: 600; font-family: 'JetBrains Mono', monospace; padding: 2px 6px; border-radius: 3px; background: #00000010; }
+.alert-name  { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.alert-values { display: flex; gap: 12px; margin-bottom: 6px; align-items: baseline; }
+.alert-value-actual { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; }
+.alert-value-anterior { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--ink-light); }
+.alert-desc  { font-size: 12px; color: var(--ink-light); line-height: 1.4; }
+
+/* BLOCKS */
+.block { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 32px; margin-bottom: 20px; }
+.block h3 { font-family: 'DM Serif Display', serif; font-size: 1.1rem; margin-bottom: 14px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.block p, .block li { font-size: 14px; line-height: 1.7; color: var(--ink); }
+.block ul { padding-left: 18px; margin-top: 8px; }
+.block li { margin-bottom: 6px; }
+
+/* ALERTAS CRITICAS */
+.block.critico { background: var(--danger-soft); border-color: var(--danger); }
+.block.critico h3 { color: var(--danger); }
+.block.critico li { color: var(--danger); font-weight: 500; }
+
+/* RECOMENDACIONES */
+.recommendations { background: var(--ink); color: #fff; border-radius: var(--radius); padding: 28px 32px; margin-bottom: 20px; }
+.recommendations h3 { font-family: 'DM Serif Display', serif; font-size: 1.1rem; margin-bottom: 16px; color: #93c5fd; }
+.reco-item { border: 1px solid #ffffff15; border-radius: 8px; padding: 16px; margin-bottom: 10px; }
+.reco-item:last-child { margin-bottom: 0; }
+.reco-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.reco-accion { font-size: 14px; font-weight: 600; color: #fff; flex: 1; }
+.reco-plazo { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; white-space: nowrap; margin-left: 10px; }
+.reco-plazo.inmediato { background: #dc262630; color: #fca5a5; }
+.reco-plazo.treinta   { background: #d9770630; color: #fcd34d; }
+.reco-plazo.noventa   { background: #2563eb30; color: #93c5fd; }
+.reco-plazo.seis      { background: #16a34a30; color: #86efac; }
+.reco-impacto { font-size: 12px; color: #9ca3af; line-height: 1.5; }
+
+/* CONCLUSION */
+.conclusion-block { background: var(--accent); color: #fff; border-radius: var(--radius); padding: 20px 28px; margin-bottom: 20px; }
+.conclusion-block p { font-family: 'DM Serif Display', serif; font-size: 1.15rem; line-height: 1.5; }
+
+.disclaimer { font-size: 11px; color: var(--ink-light); text-align: center; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--paper-dark); line-height: 1.6; }
+.btn-reset { display: block; margin: 24px auto 0; background: transparent; border: 1px solid var(--border); color: var(--ink-light); padding: 10px 24px; border-radius: var(--radius); cursor: pointer; font-size: 13px; transition: border-color 0.2s, color 0.2s; }
+.btn-reset:hover { border-color: var(--accent); color: var(--accent); }
+
+footer { text-align: center; padding: 24px; font-size: 11px; color: var(--ink-light); border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <div class="logo-eyebrow">Análisis Financiero de Renta Variable</div>
+    <div class="logo-name">Balance<em>Simple</em></div>
+    <div class="logo-tagline">Estados financieros de empresas cotizantes analizados con criterio de analista buy-side</div>
+  </div>
+  <div class="header-badge">IA · OpenRouter</div>
+</header>
+
+<main>
+
+  <div class="model-section">
+    <label class="section-label">Elegí el modelo de IA</label>
+    <div class="model-grid" id="modelGrid"></div>
+    <div class="model-used-note" id="modelUsedNote"></div>
+  </div>
+
+  <div class="upload-section">
+    <label class="section-label" style="margin-bottom:10px">Subí el reporte financiero en PDF</label>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf" />
+      <span class="drop-icon">📄</span>
+      <div class="drop-text-main">Arrastrá el PDF acá o hacé click para elegirlo</div>
+      <div class="drop-text-sub">10-K · 20-F · Reporte anual · Earnings release · Con datos comparativos · Máx. 10 MB</div>
+    </div>
+    <div class="file-selected" id="fileSelected">
+      <span>✅</span>
+      <span class="file-selected-name" id="fileName">—</span>
+    </div>
+  </div>
+
+  <div class="upload-section" style="margin-bottom:24px">
+    <label class="section-label" style="margin-bottom:10px">Ticker (opcional)</label>
+    <input
+      type="text"
+      id="tickerInput"
+      placeholder="Ej: AAPL, MSFT, GGAL — dejalo vacío si no aplica"
+      style="width:100%; border:2px solid var(--border); border-radius:8px; padding:12px 14px; font-family:'JetBrains Mono', monospace; font-size:13px; color:var(--ink); background:#fff;"
+      maxlength="10"
+    />
+    <div style="font-size:11px; color:var(--ink-light); margin-top:6px;">
+      Si lo indicás, la app intenta traer precio y capitalización de mercado en tiempo real para completar la valuación relativa. Si no se encuentra el ticker, el análisis continúa igual solo con los datos del PDF.
+    </div>
+  </div>
+
+  <button class="btn-analyze" id="btnAnalyze" disabled onclick="analyzeBalance()">
+    Analizar Reporte Financiero →
+  </button>
+
+  <div class="loading-bar" id="loadingBar"><div class="loading-fill"></div></div>
+  <div class="loading-msg" id="loadingMsg">Analizando fundamentales, valuación, calidad de resultados y señales de riesgo… puede tardar unos segundos.</div>
+  <div class="error-box" id="errorBox"></div>
+
+  <hr class="results-divider" id="resultsDivider" style="display:none" />
+
+  <section id="results">
+
+    <div class="periodo-header">
+      <span class="periodo-label">Diagnóstico Financiero</span>
+      <span class="periodo-badge periodo-actual" id="periodoActual">—</span>
+      <span class="periodo-badge periodo-anterior" id="periodoAnterior">—</span>
+    </div>
+
+    <div class="block" id="marketDataBlock" style="display:none"></div>
+
+    <div class="alerts-grid" id="alertsGrid"></div>
+
+    <div class="block" id="summaryBlock"></div>
+    <div class="block" id="evolucionBlock"></div>
+    <div class="block" id="earningsQualityBlock"></div>
+    <div class="block" id="highlightsBlock"></div>
+    <div class="block" id="concernsBlock"></div>
+    <div class="block critico" id="criticoBlock" style="display:none"></div>
+    <div class="recommendations" id="recoBlock"></div>
+    <div class="conclusion-block" id="conclusionBlock"></div>
+
+    <div class="disclaimer">
+      ⚠️ Este análisis fue generado por inteligencia artificial a partir del documento subido y tiene carácter orientativo.
+      No constituye asesoramiento financiero ni recomendación de inversión. Las decisiones de inversión implican riesgos.
+      Consultá siempre a un asesor financiero matriculado antes de tomar decisiones de compra o venta de activos.
+    </div>
+    <button class="btn-reset" onclick="resetApp()">← Analizar otro reporte</button>
+  </section>
+
+</main>
+
+<footer>
+  BalanceSimple · Trabajo Final Integrador · Diplomatura en IA Aplicada · FCE-UBA 2026
+</footer>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const MODELS = [
+  { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash", desc: "Recomendado · Rápido, contexto amplio", tier: "free", default: true },
+  { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", desc: "Muy capaz · Alta precisión", tier: "free" },
+  { id: "anthropic/claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Alta precisión · Uso de créditos", tier: "paid" },
+  { id: "openai/gpt-4o", name: "GPT-4o", desc: "Referencia del sector · Uso de créditos", tier: "paid" },
+];
+
+let selectedModel = MODELS.find((m) => m.default)?.id || MODELS[0].id;
+let selectedFile = null;
+
+function buildModelGrid() {
+  const grid = document.getElementById("modelGrid");
+  grid.innerHTML = "";
+  MODELS.forEach((m) => {
+    const card = document.createElement("button");
+    card.className = "model-card" + (m.id === selectedModel ? " selected" : "");
+    card.setAttribute("type", "button");
+    card.innerHTML = `
+      <span class="model-badge ${m.tier}">${m.tier === "free" ? "Gratis" : "Pago"}</span>
+      <span class="model-info">
+        <span class="model-name">${m.name}</span>
+        <span class="model-desc">${m.desc}</span>
+      </span>`;
+    card.addEventListener("click", () => {
+      selectedModel = m.id;
+      document.querySelectorAll(".model-card").forEach((c) => c.classList.remove("selected"));
+      card.classList.add("selected");
+    });
+    grid.appendChild(card);
+  });
+}
+
+const dropZone = document.getElementById("dropZone");
+dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault(); dropZone.classList.remove("drag-over");
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === "application/pdf") setFile(f);
+});
+document.getElementById("fileInput").addEventListener("change", (e) => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+function setFile(f) {
+  selectedFile = f;
+  document.getElementById("fileName").textContent = f.name;
+  document.getElementById("fileSelected").classList.add("visible");
+  document.getElementById("btnAnalyze").disabled = false;
+  hideError();
+}
+
+function hideError() { document.getElementById("errorBox").classList.remove("visible"); }
+function showError(msg) { const b = document.getElementById("errorBox"); b.textContent = msg; b.classList.add("visible"); }
+function setLoading(active) {
+  document.getElementById("loadingBar").classList.toggle("active", active);
+  document.getElementById("loadingMsg").classList.toggle("active", active);
+  document.getElementById("btnAnalyze").disabled = active;
+}
+
+async function extractTextFromPDF(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let fullText = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    fullText += content.items.map((item) => item.str).join(" ") + "\n";
+  }
+  return fullText.trim();
+}
+
+async function analyzeBalance() {
+  if (!selectedFile) return;
+  hideError();
+  setLoading(true);
+  document.getElementById("results").classList.remove("visible");
+  document.getElementById("resultsDivider").style.display = "none";
+  document.getElementById("modelUsedNote").classList.remove("visible");
+
+  try {
+    const pdfText = await extractTextFromPDF(selectedFile);
+    if (!pdfText || pdfText.length < 50) throw new Error("No se pudo extraer texto del PDF. Verificá que el archivo tenga texto seleccionable (no escaneado). Los reportes 10-K, 20-F y earnings releases digitales funcionan correctamente.");
+
+    const response = await fetch("/.netlify/functions/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pdfText,
+        preferredModel: selectedModel,
+        ticker: document.getElementById("tickerInput").value.trim(),
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Error del servidor (${response.status})`);
+
+    const usedModel = MODELS.find((m) => m.id === data.modelUsed);
+    const note = document.getElementById("modelUsedNote");
+    if (usedModel) {
+      note.textContent = data.modelUsed !== selectedModel
+        ? `ℹ️ Se usó ${usedModel.name} como alternativa (el modelo seleccionado no estuvo disponible).`
+        : `✅ Análisis generado con ${usedModel.name}.`;
+      note.classList.add("visible");
+    }
+
+    renderResults(data.result, data.marketData);
+  } catch (err) {
+    showError("Ocurrió un error al analizar los Estados Contables:\n" + err.message);
+  } finally {
+    setLoading(false);
+  }
+}
+
+function plazoClass(plazo) {
+  if (!plazo) return "noventa";
+  const p = plazo.toLowerCase();
+  if (p.includes("inmediato")) return "inmediato";
+  if (p.includes("30")) return "treinta";
+  if (p.includes("90")) return "noventa";
+  if (p.includes("6")) return "seis";
+  return "noventa";
+}
+
+function renderResults(data, marketData) {
+  // Datos de mercado en tiempo real (opcional — solo si vino ticker y se encontró)
+  const marketBlock = document.getElementById("marketDataBlock");
+  if (marketData) {
+    const cambio = marketData.variacionDiaria;
+    const cambioTxt = cambio !== null && cambio !== undefined
+      ? `${cambio > 0 ? "+" : ""}${cambio.toFixed(2)}%`
+      : "—";
+    const cambioColor = cambio > 0 ? "var(--ok)" : cambio < 0 ? "var(--danger)" : "var(--ink-light)";
+    const capTxt = marketData.marketCap ? `$${(marketData.marketCap / 1_000_000_000).toFixed(2)}B` : "—";
+    marketBlock.innerHTML = `
+      <h3>📡 Datos de mercado en tiempo real — ${marketData.ticker}</h3>
+      <p style="display:flex; gap:24px; flex-wrap:wrap; font-family:'JetBrains Mono', monospace;">
+        <span><strong>Precio:</strong> ${marketData.precio ? `$${marketData.precio} ${marketData.moneda}` : "—"}</span>
+        <span style="color:${cambioColor}"><strong>Var. diaria:</strong> ${cambioTxt}</span>
+        <span><strong>Market Cap:</strong> ${capTxt}</span>
+      </p>`;
+    marketBlock.style.display = "block";
+  } else {
+    marketBlock.style.display = "none";
+  }
+
+  // Periodo
+  if (data.periodo) {
+    document.getElementById("periodoActual").textContent = data.periodo.actual || "Período actual";
+    document.getElementById("periodoAnterior").textContent = data.periodo.anterior || "Período anterior";
+  }
+
+  // Alerts
+  const grid = document.getElementById("alertsGrid");
+  grid.innerHTML = "";
+  (data.alerts || []).forEach((a) => {
+    const card = document.createElement("div");
+    card.className = `alert-card ${a.status || "ok"}`;
+    card.innerHTML = `
+      <div class="alert-top">
+        <div class="alert-label">${a.label || a.status}</div>
+        ${a.variacion ? `<div class="alert-variacion">${a.variacion}</div>` : ""}
+      </div>
+      <div class="alert-name">${a.name}</div>
+      <div class="alert-values">
+        <div class="alert-value-actual">${a.value_actual || a.value || "—"}</div>
+        ${a.value_anterior ? `<div class="alert-value-anterior">ant: ${a.value_anterior}</div>` : ""}
+      </div>
+      <div class="alert-desc">${a.description}</div>`;
+    grid.appendChild(card);
+  });
+
+  // Summary
+  document.getElementById("summaryBlock").innerHTML = `<h3>📊 Panorama general</h3><p>${data.summary || ""}</p>`;
+
+  // Evolución
+  if (data.evolucion) {
+    document.getElementById("evolucionBlock").innerHTML = `<h3>📈 Evolución vs año anterior</h3><p>${data.evolucion}</p>`;
+    document.getElementById("evolucionBlock").style.display = "block";
+  } else {
+    document.getElementById("evolucionBlock").style.display = "none";
+  }
+
+  // Calidad de resultados (nuevo)
+  if (data.earnings_quality) {
+    document.getElementById("earningsQualityBlock").innerHTML = `<h3>🔍 Calidad de los resultados</h3><p>${data.earnings_quality}</p>`;
+    document.getElementById("earningsQualityBlock").style.display = "block";
+  } else {
+    document.getElementById("earningsQualityBlock").style.display = "none";
+  }
+
+  // Highlights & Concerns
+  const highlights = (data.highlights || []).map((h) => `<li>${h}</li>`).join("");
+  const concerns   = (data.concerns   || []).map((c) => `<li>${c}</li>`).join("");
+  document.getElementById("highlightsBlock").innerHTML = highlights ? `<h3>✅ Puntos fuertes</h3><ul>${highlights}</ul>` : "";
+  document.getElementById("concernsBlock").innerHTML   = concerns   ? `<h3>⚠️ Puntos a mejorar</h3><ul>${concerns}</ul>`   : "";
+
+  // Alertas críticas
+  const criticas = data.alertas_criticas || [];
+  const criticoBlock = document.getElementById("criticoBlock");
+  if (criticas.length > 0) {
+    criticoBlock.innerHTML = `<h3>🚨 Alertas críticas</h3><ul>${criticas.map((c) => `<li>${c}</li>`).join("")}</ul>`;
+    criticoBlock.style.display = "block";
+  } else {
+    criticoBlock.style.display = "none";
+  }
+
+  // Recomendaciones
+  const recos = document.getElementById("recoBlock");
+  const recoItems = (data.recommendations || []).map((r) => {
+    const plazo = typeof r === "string" ? "90 días" : r.plazo || "90 días";
+    const accion = typeof r === "string" ? r : r.accion || r;
+    const impacto = typeof r === "object" ? r.impacto || "" : "";
+    return `
+      <div class="reco-item">
+        <div class="reco-top">
+          <div class="reco-accion">${accion}</div>
+          <div class="reco-plazo ${plazoClass(plazo)}">${plazo}</div>
+        </div>
+        ${impacto ? `<div class="reco-impacto">${impacto}</div>` : ""}
+      </div>`;
+  }).join("");
+  recos.innerHTML = `<h3>💡 Plan de acción</h3>${recoItems}`;
+
+  // Conclusión
+  if (data.conclusion) {
+    document.getElementById("conclusionBlock").innerHTML = `<p>"${data.conclusion}"</p>`;
+    document.getElementById("conclusionBlock").style.display = "block";
+  } else {
+    document.getElementById("conclusionBlock").style.display = "none";
+  }
+
+  document.getElementById("results").classList.add("visible");
+  document.getElementById("resultsDivider").style.display = "block";
+  document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function resetApp() {
+  selectedFile = null;
+  document.getElementById("fileInput").value = "";
+  document.getElementById("tickerInput").value = "";
+  document.getElementById("fileSelected").classList.remove("visible");
+  document.getElementById("results").classList.remove("visible");
+  document.getElementById("resultsDivider").style.display = "none";
+  document.getElementById("modelUsedNote").classList.remove("visible");
+  hideError();
+  document.getElementById("btnAnalyze").disabled = true;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+buildModelGrid();
+</script>
+</body>
+</html>

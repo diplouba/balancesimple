@@ -1,0 +1,9 @@
+{
+  "name": "balancesimple",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Herramienta de análisis de estados financieros para inversores, potenciada con IA generativa.",
+  "engines": {
+    "node": ">=18"
+  }
+}
