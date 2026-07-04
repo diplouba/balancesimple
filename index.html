@@ -304,7 +304,7 @@ async function analyzeBalance() {
     if (!response.ok) throw new Error(data.error || `Error del servidor (${response.status})`);
 
     const note = document.getElementById("modelUsedNote");
-    note.textContent = `✅ Análisis generado con Gemini 2.5 Flash.`;
+    note.textContent = `✅ Análisis generado con ${data.modelUsed || "Gemini"}.`;
     note.classList.add("visible");
 
     renderResults(data.result, data.marketData);
