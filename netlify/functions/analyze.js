@@ -1,7 +1,7 @@
 // netlify/functions/analyze.js
 // Analiza EECC con prompt de experto financiero, usando Gemini (Google AI Studio) directamente.
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
 
 // ─────────────────────────────────────────────────────────────
 // ENRIQUECIMIENTO OPCIONAL: cotización y capitalización de mercado
@@ -192,13 +192,13 @@ OUTPUT JSON STRUCTURE (respond with exactly this shape):
 
 Include between 6 and 8 alerts covering: fundamental analysis (2–3), financial health (2), earnings quality (1), and momentum/valuation (1–2). Include 3 to 5 recommendations ordered by urgency. Always include the "earnings_quality" field.`;
 
-async function callGemini(apiKey, pdfText, marketDataText) {
+async function callGemini(apiKey, model, pdfText, marketDataText) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  const timeoutId = setTimeout(() => controller.abort(), 9000);
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
       {
         method: "POST",
         signal: controller.signal,
@@ -273,17 +273,22 @@ exports.handler = async (event) => {
   const marketData = await getMarketData(ticker);
   const marketDataText = formatMarketDataForPrompt(marketData);
 
-  try {
-    const text = await callGemini(apiKey, truncated, marketDataText);
-    const clean = text.replace(/```json|```/g, "").trim();
-    const result = JSON.parse(clean);
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({ result, modelUsed: GEMINI_MODEL, marketData: marketData || null }),
-    };
-  } catch (err) {
-    console.warn(`Gemini failed: ${err.message}`);
-    return { statusCode: 502, headers, body: JSON.stringify({ error: `No se pudo obtener análisis. Último error: ${err.message}` }) };
+  let lastError = "";
+  for (const model of GEMINI_MODELS) {
+    try {
+      const text = await callGemini(apiKey, model, truncated, marketDataText);
+      const clean = text.replace(/```json|```/g, "").trim();
+      const result = JSON.parse(clean);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ result, modelUsed: model, marketData: marketData || null }),
+      };
+    } catch (err) {
+      lastError = err.message;
+      console.warn(`Model ${model} failed: ${err.message} — trying next...`);
+    }
   }
+
+  return { statusCode: 502, headers, body: JSON.stringify({ error: `No se pudo obtener análisis. Último error: ${lastError}` }) };
 };
