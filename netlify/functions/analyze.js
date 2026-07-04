@@ -3,8 +3,8 @@
 
 const FREE_MODELS = [
   "openai/gpt-oss-20b:free",
-  "meta-llama/llama-3.3-70b:free",
-  "deepseek/deepseek-r1-distill:free",
+  "cohere/north-mini-code:free",
+  "google/gemma-4-31b-it:free",
 ];
 
 const PAID_MODELS = [
