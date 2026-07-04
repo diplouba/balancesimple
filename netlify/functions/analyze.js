@@ -234,8 +234,9 @@ async function callOpenRouter(apiKey, model, pdfText, marketDataText) {
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      const msg = err?.error?.message || `HTTP ${response.status}`;
-      throw new Error(msg);
+      const baseMsg = err?.error?.message || `HTTP ${response.status}`;
+      const metaMsg = err?.error?.metadata ? ` | metadata: ${JSON.stringify(err.error.metadata)}` : "";
+      throw new Error(baseMsg + metaMsg);
     }
 
     // El await de acá abajo también queda cubierto por el mismo
