@@ -1,21 +1,7 @@
 // netlify/functions/analyze.js
-// Analiza EECC con prompt de experto financiero y fallback automático de modelos.
+// Analiza EECC con prompt de experto financiero, usando Gemini (Google AI Studio) directamente.
 
-const FREE_MODELS = [
-  "openai/gpt-oss-20b:free",
-  "cohere/north-mini-code:free",
-  "google/gemma-4-31b-it:free",
-  "google/gemma-4-26b-a4b-it:free",
-];
-
-const PAID_MODELS = [
-  "anthropic/claude-sonnet-4-5",
-  "openai/gpt-4o",
-  "google/gemini-pro-1.5",
-  "anthropic/claude-3-haiku",
-];
-
-const ALL_MODELS = [...FREE_MODELS, ...PAID_MODELS];
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 // ─────────────────────────────────────────────────────────────
 // ENRIQUECIMIENTO OPCIONAL: cotización y capitalización de mercado
@@ -206,49 +192,49 @@ OUTPUT JSON STRUCTURE (respond with exactly this shape):
 
 Include between 6 and 8 alerts covering: fundamental analysis (2–3), financial health (2), earnings quality (1), and momentum/valuation (1–2). Include 3 to 5 recommendations ordered by urgency. Always include the "earnings_quality" field.`;
 
-async function callOpenRouter(apiKey, model, pdfText, marketDataText) {
+async function callGemini(apiKey, pdfText, marketDataText) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6500);
+  const timeoutId = setTimeout(() => controller.abort(), 25000);
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://stupendous-jalebi-a78dd2.netlify.app",
-        "X-Title": "BalanceSimple",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 1800,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `Analizá estos Estados Contables y generá el JSON con el diagnóstico financiero completo.\n\nESTADOS CONTABLES:\n${pdfText}${marketDataText || ""}`,
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  text: `Analizá estos Estados Contables y generá el JSON con el diagnóstico financiero completo.\n\nESTADOS CONTABLES:\n${pdfText}${marketDataText || ""}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: 2000,
+            responseMimeType: "application/json",
           },
-        ],
-      }),
-    });
+        }),
+      }
+    );
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      const baseMsg = err?.error?.message || `HTTP ${response.status}`;
-      const metaMsg = err?.error?.metadata ? ` | metadata: ${JSON.stringify(err.error.metadata)}` : "";
-      throw new Error(baseMsg + metaMsg);
+      const msg = err?.error?.message || `HTTP ${response.status}`;
+      throw new Error(msg);
     }
 
-    // El await de acá abajo también queda cubierto por el mismo
-    // controller.signal: si el modelo tarda en terminar de enviar
-    // el cuerpo de la respuesta, el abort() de arriba lo corta igual.
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || "";
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (!text) throw new Error("Respuesta vacía del modelo.");
-    return { text, model };
+    return text;
   } catch (err) {
-    if (err.name === "AbortError") throw new Error("Tiempo de espera agotado (modelo demasiado lento).");
+    if (err.name === "AbortError") throw new Error("Tiempo de espera agotado (Gemini tardó demasiado).");
     throw err;
   } finally {
     clearTimeout(timeoutId);
@@ -265,14 +251,14 @@ exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: JSON.stringify({ error: "Método no permitido." }) };
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return { statusCode: 500, headers, body: JSON.stringify({ error: "API key no configurada en el servidor." }) };
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) return { statusCode: 500, headers, body: JSON.stringify({ error: "GOOGLE_API_KEY no configurada en el servidor." }) };
 
   let body;
   try { body = JSON.parse(event.body); }
   catch { return { statusCode: 400, headers, body: JSON.stringify({ error: "Body inválido." }) }; }
 
-  const { pdfText, preferredModel, ticker } = body;
+  const { pdfText, ticker } = body;
 
   if (!pdfText || pdfText.trim().length < 50) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "No se pudo extraer texto del PDF. Asegurate de que el archivo tenga texto seleccionable." }) };
@@ -286,25 +272,17 @@ exports.handler = async (event) => {
   const marketData = await getMarketData(ticker);
   const marketDataText = formatMarketDataForPrompt(marketData);
 
-  const startModel = preferredModel && ALL_MODELS.includes(preferredModel) ? preferredModel : FREE_MODELS[0];
-  const queue = [startModel, ...ALL_MODELS.filter((m) => m !== startModel)];
-
-  let lastError = "";
-  for (const model of queue) {
-    try {
-      const { text, model: usedModel } = await callOpenRouter(apiKey, model, truncated, marketDataText);
-      const clean = text.replace(/```json|```/g, "").trim();
-      const result = JSON.parse(clean);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ result, modelUsed: usedModel, marketData: marketData || null }),
-      };
-    } catch (err) {
-      lastError = err.message;
-      console.warn(`Model ${model} failed: ${err.message} — trying next...`);
-    }
+  try {
+    const text = await callGemini(apiKey, truncated, marketDataText);
+    const clean = text.replace(/```json|```/g, "").trim();
+    const result = JSON.parse(clean);
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ result, modelUsed: GEMINI_MODEL, marketData: marketData || null }),
+    };
+  } catch (err) {
+    console.warn(`Gemini failed: ${err.message}`);
+    return { statusCode: 502, headers, body: JSON.stringify({ error: `No se pudo obtener análisis. Último error: ${err.message}` }) };
   }
-
-  return { statusCode: 502, headers, body: JSON.stringify({ error: `No se pudo obtener análisis. Último error: ${lastError}` }) };
 };
