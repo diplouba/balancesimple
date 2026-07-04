@@ -3,7 +3,8 @@
 
 const FREE_MODELS = [
   "openai/gpt-oss-20b:free",
-  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "meta-llama/llama-3.3-70b:free",
+  "deepseek/deepseek-r1-distill:free",
 ];
 
 const PAID_MODELS = [
@@ -206,7 +207,7 @@ Include between 6 and 8 alerts covering: fundamental analysis (2–3), financial
 
 async function callOpenRouter(apiKey, model, pdfText, marketDataText) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
