@@ -152,15 +152,14 @@ footer { text-align: center; padding: 24px; font-size: 11px; color: var(--ink-li
     <div class="logo-name">Balance<em>Simple</em></div>
     <div class="logo-tagline">Estados financieros de empresas cotizantes analizados con criterio de analista buy-side</div>
   </div>
-  <div class="header-badge">IA · OpenRouter</div>
+  <div class="header-badge">IA · Gemini</div>
 </header>
 
 <main>
 
   <div class="model-section">
-    <label class="section-label">Elegí el modelo de IA</label>
-    <div class="model-grid" id="modelGrid"></div>
-    <div class="model-used-note" id="modelUsedNote"></div>
+    <label class="section-label">Motor de análisis</label>
+    <div class="model-used-note" style="display:block;opacity:0.8;">Powered by Google Gemini 2.5 Flash</div>
   </div>
 
   <div class="upload-section">
@@ -239,37 +238,7 @@ footer { text-align: center; padding: 24px; font-size: 11px; color: var(--ink-li
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-const MODELS = [
-  { id: "google/gemini-2.0-flash-exp:free", name: "Gemini 2.0 Flash", desc: "Recomendado · Rápido, contexto amplio", tier: "free", default: true },
-  { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", desc: "Muy capaz · Alta precisión", tier: "free" },
-  { id: "anthropic/claude-sonnet-4-5", name: "Claude Sonnet 4.5", desc: "Alta precisión · Uso de créditos", tier: "paid" },
-  { id: "openai/gpt-4o", name: "GPT-4o", desc: "Referencia del sector · Uso de créditos", tier: "paid" },
-];
-
-let selectedModel = MODELS.find((m) => m.default)?.id || MODELS[0].id;
 let selectedFile = null;
-
-function buildModelGrid() {
-  const grid = document.getElementById("modelGrid");
-  grid.innerHTML = "";
-  MODELS.forEach((m) => {
-    const card = document.createElement("button");
-    card.className = "model-card" + (m.id === selectedModel ? " selected" : "");
-    card.setAttribute("type", "button");
-    card.innerHTML = `
-      <span class="model-badge ${m.tier}">${m.tier === "free" ? "Gratis" : "Pago"}</span>
-      <span class="model-info">
-        <span class="model-name">${m.name}</span>
-        <span class="model-desc">${m.desc}</span>
-      </span>`;
-    card.addEventListener("click", () => {
-      selectedModel = m.id;
-      document.querySelectorAll(".model-card").forEach((c) => c.classList.remove("selected"));
-      card.classList.add("selected");
-    });
-    grid.appendChild(card);
-  });
-}
 
 const dropZone = document.getElementById("dropZone");
 dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("drag-over"); });
@@ -326,7 +295,6 @@ async function analyzeBalance() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pdfText,
-        preferredModel: selectedModel,
         ticker: document.getElementById("tickerInput").value.trim(),
       }),
     });
@@ -334,14 +302,9 @@ async function analyzeBalance() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || `Error del servidor (${response.status})`);
 
-    const usedModel = MODELS.find((m) => m.id === data.modelUsed);
     const note = document.getElementById("modelUsedNote");
-    if (usedModel) {
-      note.textContent = data.modelUsed !== selectedModel
-        ? `ℹ️ Se usó ${usedModel.name} como alternativa (el modelo seleccionado no estuvo disponible).`
-        : `✅ Análisis generado con ${usedModel.name}.`;
-      note.classList.add("visible");
-    }
+    note.textContent = `✅ Análisis generado con Gemini 2.5 Flash.`;
+    note.classList.add("visible");
 
     renderResults(data.result, data.marketData);
   } catch (err) {
@@ -487,7 +450,7 @@ function resetApp() {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-buildModelGrid();
+
 </script>
 </body>
 </html>
