@@ -216,8 +216,9 @@ async function callGemini(apiKey, pdfText, marketDataText) {
             },
           ],
           generationConfig: {
-            maxOutputTokens: 2000,
+            maxOutputTokens: 4096,
             responseMimeType: "application/json",
+            thinkingConfig: { thinkingBudget: 0 },
           },
         }),
       }
