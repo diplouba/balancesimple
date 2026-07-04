@@ -2,7 +2,6 @@
 // Analiza EECC con prompt de experto financiero y fallback automático de modelos.
 
 const FREE_MODELS = [
-  "openrouter/free",
   "openai/gpt-oss-20b:free",
   "nvidia/nemotron-3-ultra-550b-a55b:free",
 ];
@@ -209,9 +208,8 @@ async function callOpenRouter(apiKey, model, pdfText, marketDataText) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 9000);
 
-  let response;
   try {
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -232,23 +230,26 @@ async function callOpenRouter(apiKey, model, pdfText, marketDataText) {
         ],
       }),
     });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      const msg = err?.error?.message || `HTTP ${response.status}`;
+      throw new Error(msg);
+    }
+
+    // El await de acá abajo también queda cubierto por el mismo
+    // controller.signal: si el modelo tarda en terminar de enviar
+    // el cuerpo de la respuesta, el abort() de arriba lo corta igual.
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || "";
+    if (!text) throw new Error("Respuesta vacía del modelo.");
+    return { text, model };
   } catch (err) {
     if (err.name === "AbortError") throw new Error("Tiempo de espera agotado (modelo demasiado lento).");
     throw err;
   } finally {
     clearTimeout(timeoutId);
   }
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    const msg = err?.error?.message || `HTTP ${response.status}`;
-    throw new Error(msg);
-  }
-
-  const data = await response.json();
-  const text = data.choices?.[0]?.message?.content || "";
-  if (!text) throw new Error("Respuesta vacía del modelo.");
-  return { text, model };
 }
 
 exports.handler = async (event) => {
