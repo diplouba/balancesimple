@@ -1,7 +1,7 @@
 // netlify/functions/analyze.js
 // Analiza EECC con prompt de experto financiero, usando Gemini (Google AI Studio) directamente.
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 // ─────────────────────────────────────────────────────────────
 // ENRIQUECIMIENTO OPCIONAL: cotización y capitalización de mercado
@@ -194,7 +194,7 @@ Include between 6 and 8 alerts covering: fundamental analysis (2–3), financial
 
 async function callGemini(apiKey, model, pdfText, marketDataText) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 9000);
+  const timeoutId = setTimeout(() => controller.abort(), 13000);
 
   try {
     const response = await fetch(
