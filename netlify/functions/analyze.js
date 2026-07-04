@@ -5,6 +5,7 @@ const FREE_MODELS = [
   "openai/gpt-oss-20b:free",
   "cohere/north-mini-code:free",
   "google/gemma-4-31b-it:free",
+  "google/gemma-4-26b-a4b-it:free",
 ];
 
 const PAID_MODELS = [
@@ -207,7 +208,7 @@ Include between 6 and 8 alerts covering: fundamental analysis (2–3), financial
 
 async function callOpenRouter(apiKey, model, pdfText, marketDataText) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 6500);
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
