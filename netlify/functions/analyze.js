@@ -206,26 +206,38 @@ OUTPUT JSON STRUCTURE (respond with exactly this shape):
 Include between 6 and 8 alerts covering: fundamental analysis (2–3), financial health (2), earnings quality (1), and momentum/valuation (1–2). Include 3 to 5 recommendations ordered by urgency. Always include the "earnings_quality" field.`;
 
 async function callOpenRouter(apiKey, model, pdfText, marketDataText) {
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://stupendous-jalebi-a78dd2.netlify.app",
-      "X-Title": "BalanceSimple",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 2500,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Analizá estos Estados Contables y generá el JSON con el diagnóstico financiero completo.\n\nESTADOS CONTABLES:\n${pdfText}${marketDataText || ""}`,
-        },
-      ],
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+  let response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://stupendous-jalebi-a78dd2.netlify.app",
+        "X-Title": "BalanceSimple",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 1800,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Analizá estos Estados Contables y generá el JSON con el diagnóstico financiero completo.\n\nESTADOS CONTABLES:\n${pdfText}${marketDataText || ""}`,
+          },
+        ],
+      }),
+    });
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Tiempo de espera agotado (modelo demasiado lento).");
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
