@@ -1,7 +1,14 @@
 // netlify/functions/analyze.js
 // Analiza EECC con prompt de experto financiero, usando Gemini (Google AI Studio) directamente.
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+// Un solo modelo, con timeout generoso: al mandar documentos de hasta
+// 250.000 caracteres, repartir el tiempo entre varios modelos de
+// respaldo (como se hacía antes) corre más riesgo de que ninguno
+// alcance a terminar dentro del límite de ejecución de Netlify (~29s).
+// Gemini 2.5 Flash es el modelo más capaz de la familia disponible en
+// el nivel gratuito, así que se prioriza darle todo el tiempo posible
+// en un único intento.
+const GEMINI_MODELS = ["gemini-2.5-flash"];
 
 // ─────────────────────────────────────────────────────────────
 // ENRIQUECIMIENTO OPCIONAL: cotización y capitalización de mercado
@@ -18,10 +25,13 @@ async function getMarketData(ticker) {
   if (!cleanTicker || !/^[A-Z.\-]{1,10}$/.test(cleanTicker)) return null;
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
     const [quoteRes, profileRes] = await Promise.all([
-      fetch(`https://finnhub.io/api/v1/quote?symbol=${cleanTicker}&token=${apiKey}`),
-      fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${cleanTicker}&token=${apiKey}`),
+      fetch(`https://finnhub.io/api/v1/quote?symbol=${cleanTicker}&token=${apiKey}`, { signal: controller.signal }),
+      fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${cleanTicker}&token=${apiKey}`, { signal: controller.signal }),
     ]);
+    clearTimeout(timeoutId);
 
     if (!quoteRes.ok || !profileRes.ok) return null;
 
@@ -194,7 +204,14 @@ Include between 6 and 8 alerts covering: fundamental analysis (2–3), financial
 
 async function callGemini(apiKey, model, pdfText, marketDataText) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 13000);
+  // Netlify corta la ejecución de la función a los ~29-30 segundos sin
+  // excepción (límite de la infraestructura, no configurable). La
+  // consulta a Finnhub (hasta 5s) sucede antes que esta llamada, así
+  // que acá se deja un margen de 23s para Gemini: 5 + 23 = 28s, con un
+  // par de segundos de colchón para el resto del código. Si igual se
+  // agota el tiempo, el usuario ve nuestro mensaje de error prolijo en
+  // vez de la página de error de Netlify.
+  const timeoutId = setTimeout(() => controller.abort(), 23000);
 
   try {
     const response = await fetch(
@@ -242,6 +259,60 @@ async function callGemini(apiKey, model, pdfText, marketDataText) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────
+// UBICACIÓN INTELIGENTE DEL BALANCE REAL DENTRO DEL DOCUMENTO
+//
+// No todos los estados financieros tienen la misma estructura: en
+// algunos (ej. EEFF bajo normativa argentina) el balance con cifras
+// aparece cerca del 15-20% del documento, después de la portada e
+// índice. En otros (ej. 10-K de EE.UU.) el balance aparece recién
+// después del informe de gerencia, el ESG y el reporte de auditoría,
+// a veces pasado el 80% del documento. Un límite fijo de caracteres
+// (ej. "primeros 250.000") funciona para un caso y falla para el
+// otro. En cambio, buscamos anclas de texto que solo aparecen en la
+// tabla real del balance (no en la portada ni en el índice, que no
+// suelen incluir renglones de totales con cifras), y extraemos una
+// ventana de texto a partir de ahí.
+// ─────────────────────────────────────────────────────────────
+function extractFinancialSection(pdfText) {
+  const ANCHORS = [
+    // Inglés (10-K, 20-F, US GAAP / IFRS)
+    "Total current assets",
+    "Total assets",
+    "Total liabilities",
+    "Total stockholders",
+    "Total shareholders",
+    // Español (EEFF bajo normativa local o IFRS)
+    "TOTAL DEL ACTIVO",
+    "TOTAL ACTIVO",
+    "TOTAL DEL PASIVO",
+    "TOTAL PASIVO",
+    "PATRIMONIO NETO",
+    "Ganancia neta del ejercicio",
+  ];
+
+  let earliestIdx = -1;
+  for (const anchor of ANCHORS) {
+    const idx = pdfText.indexOf(anchor);
+    if (idx !== -1 && (earliestIdx === -1 || idx < earliestIdx)) earliestIdx = idx;
+  }
+
+  const WINDOW = 300000; // suficiente para balance + resultados + flujo + notas
+  const INTRO_LEN = 4000; // contexto inicial: nombre de empresa, período, moneda
+
+  // No se encontró ningún ancla (formato atípico): fallback conservador.
+  if (earliestIdx === -1) return pdfText.slice(0, 250000);
+
+  const start = Math.max(0, earliestIdx - 3000);
+  const section = pdfText.slice(start, start + WINDOW);
+
+  // Si el balance ya está cerca del comienzo, no hace falta agregar nada más.
+  if (start <= INTRO_LEN) return section;
+
+  const intro = pdfText.slice(0, INTRO_LEN);
+  return `${intro}\n\n[... se omite contenido intermedio del documento (portada, índice, carta a accionistas, informe de gerencia) para priorizar los estados financieros ...]\n\n${section}`;
+}
+
 exports.handler = async (event) => {
   const headers = {
     "Access-Control-Allow-Origin": "*",
@@ -265,7 +336,7 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: "No se pudo extraer texto del PDF. Asegurate de que el archivo tenga texto seleccionable." }) };
   }
 
-  const truncated = pdfText.slice(0, 15000);
+  const truncated = extractFinancialSection(pdfText);
 
   // Enriquecimiento opcional con datos de mercado. Nunca bloquea ni
   // rompe el flujo: si no hay ticker o falla la consulta, marketData
