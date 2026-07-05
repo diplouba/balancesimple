@@ -15,7 +15,7 @@ BalanceSimple permite a cualquier inversor —sin formación contable— subir e
 
 Leer un balance o un estado de resultados requiere formación técnica que la mayoría de los inversores minoristas no tiene. BalanceSimple traduce ese documento complejo en un diagnóstico claro, con indicadores cuantificados y alertas priorizadas, funcionando como un primer nivel de análisis fundamental antes reservado a quienes tienen formación específica o acceso a plataformas pagas.
 
-Funciona con estados financieros de empresas de cualquier mercado bursátil del mundo (NYSE, NASDAQ, LSE, BCBA, B3, entre otros), bajo US GAAP, IFRS o normativa contable local.
+Funciona con estados financieros de empresas de cualquier mercado bursátil del mundo (NYSE, NASDAQ, LSE, BYMA, B3, entre otros), bajo US GAAP, IFRS o normativa contable local.
 
 ## ¿Cómo se usa?
 
@@ -57,7 +57,7 @@ El proyecto se construyó mediante **Vibe Coding** con Claude.ai: se describió 
 
 > **Nota sobre una decisión de arquitectura:** la primera versión de este proyecto usaba [OpenRouter](https://openrouter.ai) como enrutador hacia ocho modelos distintos (cuatro gratuitos y cuatro de pago) en su cadena de fallback automático — de los cuales la interfaz solo dejaba elegir 4 (Gemini 2.0 Flash, Llama 3.3 70B, Claude Sonnet 4.5 y GPT-4o); los otros 4 eran respaldos silenciosos que el backend probaba automáticamente si el elegido fallaba, sin mostrarse nunca en pantalla. En producción, esa arquitectura resultó inestable: los IDs de los modelos gratuitos cambian con frecuencia, y la cuota gratuita compartida entre todos los usuarios de OpenRouter generaba errores de "rate-limited upstream" recurrentes. Se simplificó la arquitectura para llamar directamente a Gemini con una API key propia (cuota individual, no compartida), lo que volvió el comportamiento de la app predecible.
 >
-> **Nota sobre la ubicación del balance dentro del PDF:** el texto extraído del PDF no se envía completo al modelo (documentos de 150-175 páginas pueden superar los 700.000 caracteres). En vez de recortar a un número fijo de caracteres —que funciona para un tipo de documento y falla para otro, según en qué parte del archivo aparezca el balance con cifras reales—, el backend busca frases que solo aparecen en la tabla del balance ("Total assets", "TOTAL DEL ACTIVO", "PATRIMONIO NETO", entre otras) y extrae una ventana de 300.000 caracteres a partir de la primera coincidencia. Esto se validó con dos documentos reales de estructura opuesta: un balance argentino (BCBA) donde el balance aparece al 17% del documento, y un annual report en inglés donde aparece al 80%.
+> **Nota sobre la ubicación del balance dentro del PDF:** el texto extraído del PDF no se envía completo al modelo (documentos de 150-175 páginas pueden superar los 700.000 caracteres). En vez de recortar a un número fijo de caracteres —que funciona para un tipo de documento y falla para otro, según en qué parte del archivo aparezca el balance con cifras reales—, el backend busca frases que solo aparecen en la tabla del balance ("Total assets", "TOTAL DEL ACTIVO", "PATRIMONIO NETO", entre otras) y extrae una ventana de 300.000 caracteres a partir de la primera coincidencia. Esto se validó con dos documentos reales de estructura opuesta: un balance argentino donde el balance aparece al 17% del documento, y un annual report en inglés donde aparece al 80%.
 >
 > El detalle completo de ambos procesos de depuración está documentado en la sección **Metodología** del informe, subsección "Despliegue y resolución de problemas".
 
