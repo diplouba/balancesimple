@@ -4,7 +4,7 @@
 
 Trabajo Final Integrador — Diplomatura en IA Aplicada a Entornos Digitales de Gestión (FCE-UBA, Cohorte 2026)
 
-🔗 **App en vivo:** https://stupendous-jalebi-a78dd2.netlify.app/
+🔗 **App en vivo:** https://balancesimple.netlify.app/
 📄 **Informe completo (PDF):** ver informe adjunto en la entrega / `informe/TP_BalanceSimple.pdf`
 
 ---
@@ -19,12 +19,11 @@ Funciona con estados financieros de empresas de cualquier mercado bursátil del 
 
 ## ¿Cómo se usa?
 
-1. Entrá a la app: https://stupendous-jalebi-a78dd2.netlify.app/
-2. Elegí el modelo de IA que va a hacer el análisis (hay opciones gratuitas y pagas).
-3. Arrastrá o seleccioná el PDF del estado financiero (10-K, 20-F, reporte anual, earnings release, idealmente con dos períodos comparables).
-4. Opcional: indicá el ticker de la empresa (ej. `AAPL`, `GGAL`) para enriquecer el análisis con precio y capitalización de mercado en tiempo real.
-5. Hacé clic en **"Analizar Reporte Financiero"** y esperá unos segundos.
-6. Recibís un diagnóstico completo: alertas con semáforo (verde/amarillo/rojo), evolución interanual, calidad de resultados, fortalezas y riesgos, alertas críticas, plan de acción por plazos, y una conclusión de inversión.
+1. Entrá a la app: https://balancesimple.netlify.app/
+2. Arrastrá o seleccioná el PDF del estado financiero (10-K, 20-F, reporte anual, earnings release, idealmente con dos períodos comparables).
+3. Opcional: indicá el ticker de la empresa (ej. `AAPL`, `GGAL`) para enriquecer el análisis con precio y capitalización de mercado en tiempo real.
+4. Hacé clic en **"Analizar Reporte Financiero"** y esperá unos segundos.
+5. Recibís un diagnóstico completo: alertas con semáforo (verde/amarillo/rojo), evolución interanual, calidad de resultados, fortalezas y riesgos, alertas críticas, plan de acción por plazos, y una conclusión de inversión.
 
 No requiere instalación, registro ni costo para el usuario final.
 
@@ -37,34 +36,35 @@ Entre 6 y 8 indicadores con semáforo de estado, cubriendo análisis fundamental
 El proyecto se construyó mediante **Vibe Coding** con Claude.ai: se describió el problema y el resultado esperado en lenguaje natural, y la IA generó el código de la aplicación de forma iterativa.
 
 - **`index.html`** — Frontend estático (HTML/CSS/JS en un solo archivo). Extrae el texto del PDF directamente en el navegador con [PDF.js](https://mozilla.github.io/pdf.js/) (Mozilla), sin subir el archivo original a ningún servidor.
-- **`netlify/functions/analyze.js`** — Backend serverless (Netlify Function). Contiene el prompt de sistema con la metodología de análisis financiero, gestiona la API key de OpenRouter de forma segura (nunca expuesta en el navegador), y consulta opcionalmente la API de [Finnhub](https://finnhub.io/) para enriquecer el análisis con datos de mercado en tiempo real.
+- **`netlify/functions/analyze.js`** — Backend serverless (Netlify Function). Contiene el prompt de sistema con la metodología de análisis financiero, ubica automáticamente la sección del balance dentro del texto extraído (sin importar si aparece cerca del comienzo o del final del documento), gestiona la API key de Google AI Studio de forma segura (nunca expuesta en el navegador), llama directamente al modelo Gemini 2.5 Flash, y consulta opcionalmente la API de [Finnhub](https://finnhub.io/) para enriquecer el análisis con datos de mercado en tiempo real.
 
 ```
-┌─────────────┐      texto extraído      ┌──────────────────────┐      prompt + fallback      ┌──────────────┐
-│  index.html │ ───────────────────────▶ │ netlify/functions/    │ ───────────────────────────▶ │  OpenRouter   │
-│  (PDF.js)   │                          │ analyze.js             │                              │ (4 modelos)   │
-└─────────────┘ ◀─────────────────────── └──────────────────────┘ ◀─────────────────────────── └──────────────┘
-                     diagnóstico JSON            │
-                                                  ▼
+┌─────────────┐      texto extraído      ┌──────────────────────┐      prompt      ┌──────────────┐
+│  index.html │ ───────────────────────▶ │ netlify/functions/    │ ────────────────▶ │ Google AI     │
+│  (PDF.js)   │                          │ analyze.js             │                    │ Studio        │
+└─────────────┘ ◀─────────────────────── └──────────────────────┘ ◀──────────────── │ (Gemini 2.5   │
+                     diagnóstico JSON            │                                    │  Flash)       │
+                                                  ▼                                    └──────────────┘
                                          Finnhub (opcional,
                                          datos de mercado)
 ```
 
-### Modelos de IA disponibles (vía OpenRouter)
+### Modelo de IA utilizado
 
-| Modelo | Tipo |
+| Modelo | Proveedor |
 |---|---|
-| Gemini 2.0 Flash | Gratis |
-| Llama 3.3 70B | Gratis |
-| Claude Sonnet 4.5 | Pago |
-| GPT-4o | Pago |
+| Gemini 2.5 Flash | Google AI Studio (llamada directa a `generateContent`) |
 
-El backend implementa un sistema de **fallback automático**: si el modelo elegido no está disponible, prueba sucesivamente con los siguientes de la lista hasta obtener una respuesta válida.
+> **Nota sobre una decisión de arquitectura:** la primera versión de este proyecto usaba [OpenRouter](https://openrouter.ai) como enrutador hacia ocho modelos distintos (cuatro gratuitos y cuatro de pago) en su cadena de fallback automático — de los cuales la interfaz solo dejaba elegir 4 (Gemini 2.0 Flash, Llama 3.3 70B, Claude Sonnet 4.5 y GPT-4o); los otros 4 eran respaldos silenciosos que el backend probaba automáticamente si el elegido fallaba, sin mostrarse nunca en pantalla. En producción, esa arquitectura resultó inestable: los IDs de los modelos gratuitos cambian con frecuencia, y la cuota gratuita compartida entre todos los usuarios de OpenRouter generaba errores de "rate-limited upstream" recurrentes. Se simplificó la arquitectura para llamar directamente a Gemini con una API key propia (cuota individual, no compartida), lo que volvió el comportamiento de la app predecible.
+>
+> **Nota sobre la ubicación del balance dentro del PDF:** el texto extraído del PDF no se envía completo al modelo (documentos de 150-175 páginas pueden superar los 700.000 caracteres). En vez de recortar a un número fijo de caracteres —que funciona para un tipo de documento y falla para otro, según en qué parte del archivo aparezca el balance con cifras reales—, el backend busca frases que solo aparecen en la tabla del balance ("Total assets", "TOTAL DEL ACTIVO", "PATRIMONIO NETO", entre otras) y extrae una ventana de 300.000 caracteres a partir de la primera coincidencia. Esto se validó con dos documentos reales de estructura opuesta: un balance argentino (BCBA) donde el balance aparece al 17% del documento, y un annual report en inglés donde aparece al 80%.
+>
+> El detalle completo de ambos procesos de depuración está documentado en la sección **Metodología** del informe, subsección "Despliegue y resolución de problemas".
 
 ## Herramientas de IA generativa utilizadas
 
-- **Claude.ai (Anthropic)** — Ideación del proyecto, diseño del prompt de sistema, generación del código mediante Vibe Coding y revisión iterativa de la lógica de análisis.
-- **OpenRouter** — Acceso unificado a los cuatro modelos de análisis (Gemini, Llama, Claude, GPT-4o) con fallback automático.
+- **Claude.ai (Anthropic)** — Ideación del proyecto, diseño del prompt de sistema, generación del código mediante Vibe Coding, y asistencia iterativa en el despliegue y la depuración de errores en producción.
+- **Google AI Studio (Gemini 2.5 Flash)** — Modelo que genera el diagnóstico financiero a partir del prompt de sistema y el texto extraído del PDF.
 - **Netlify** — Hosting del frontend y ejecución del backend como función serverless.
 - **Finnhub** — Datos de mercado en tiempo real (precio, variación diaria, capitalización) para enriquecer la valuación relativa cuando el usuario indica un ticker.
 - **PDF.js (Mozilla)** — Extracción de texto de los PDF directamente en el navegador del usuario.
@@ -76,14 +76,15 @@ El detalle completo del proceso, el prompt de sistema y las decisiones de diseñ
 1. Cloná este repositorio.
 2. Desplegalo en [Netlify](https://www.netlify.com/) conectando el repo.
 3. Configurá las variables de entorno en Netlify:
-   - `OPENROUTER_API_KEY` (obligatoria)
+   - `GOOGLE_API_KEY` (obligatoria — key gratuita de [Google AI Studio](https://aistudio.google.com/apikey))
    - `FINNHUB_API_KEY` (opcional — sin ella, el análisis funciona igual solo con los datos del PDF)
 4. Netlify detecta automáticamente la función en `netlify/functions/analyze.js`.
 
 ## Limitaciones conocidas
 
 - El análisis depende de la calidad del PDF de entrada (no funciona con documentos escaneados sin texto seleccionable).
-- Puede haber variabilidad entre modelos de IA para un mismo documento.
+- Si el documento no contiene ninguna de las frases ancla que identifican la tabla del balance (formato muy atípico o en un idioma no contemplado), el sistema recurre a un respaldo conservador que analiza solo el inicio del documento, lo cual puede omitir los estados financieros si estos aparecen muy avanzado el archivo.
+- Al depender de un único proveedor (Google Gemini), la app no tiene un mecanismo de respaldo si el servicio sufre una caída o un cambio de API — un trade-off deliberado frente a la inestabilidad del enrutamiento multi-modelo de la versión anterior.
 - No reemplaza la validación de un profesional matriculado — la herramienta lo aclara mediante un disclaimer visible en la interfaz.
 
 Un desarrollo más extenso de limitaciones y oportunidades de mejora está disponible en la sección **Análisis crítico** del informe.
