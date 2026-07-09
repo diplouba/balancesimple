@@ -15,7 +15,7 @@ BalanceSimple permite a cualquier inversor —sin formación contable— subir e
 
 Leer un balance o un estado de resultados requiere formación técnica que la mayoría de los inversores minoristas no tiene. BalanceSimple traduce ese documento complejo en un diagnóstico claro, con indicadores cuantificados y alertas priorizadas, funcionando como un primer nivel de análisis fundamental antes reservado a quienes tienen formación específica o acceso a plataformas pagas.
 
-Funciona con estados financieros de empresas de cualquier mercado bursátil del mundo (NYSE, NASDAQ, LSE, BYMA, B3, entre otros), bajo US GAAP, IFRS o normativa contable local.
+Funciona con estados financieros de empresas de cualquier mercado bursátil del mundo (NYSE, NASDAQ, LSE, Euronext, TSX, ASX, BYMA, B3, entre otros), bajo US GAAP, IFRS o normativa contable local.
 
 ## ¿Cómo se usa?
 
@@ -82,10 +82,10 @@ El detalle completo del proceso, el prompt de sistema y las decisiones de diseñ
 
 ## Limitaciones conocidas
 
-- El análisis depende de la calidad del PDF de entrada (no funciona con documentos escaneados sin texto seleccionable).
-- Si el documento no contiene ninguna de las frases ancla que identifican la tabla del balance (formato muy atípico o en un idioma no contemplado), el sistema recurre a un respaldo conservador que analiza solo el inicio del documento, lo cual puede omitir los estados financieros si estos aparecen muy avanzado el archivo.
-- Al depender de un único proveedor (Google Gemini), la app no tiene un mecanismo de respaldo si el servicio sufre una caída o un cambio de API — un trade-off deliberado frente a la inestabilidad del enrutamiento multi-modelo de la versión anterior.
-- No reemplaza la validación de un profesional matriculado — la herramienta lo aclara mediante un disclaimer visible en la interfaz.
+- La calidad del análisis depende directamente de la calidad del PDF de entrada. Si el documento está escaneado como imagen, mal estructurado o con formato irregular, PDF.js puede extraer el texto de forma incompleta o desordenada, y ese error se traslada al diagnóstico sin que el usuario tenga forma sencilla de detectarlo.
+- Al depender de un único proveedor (Google Gemini), la app no tiene un mecanismo de respaldo si el servicio de Google AI Studio sufre una caída o un cambio de API — un trade-off deliberado frente a la inestabilidad que presentaba el enrutamiento entre ocho modelos de la versión anterior, pero que elimina la redundancia entre proveedores.
+- El sistema no incorpora ninguna instancia de validación humana en el circuito. El disclaimer advierte sobre el carácter orientativo del análisis, pero el diseño actual no fuerza ni sugiere una revisión por parte de un profesional matriculado antes de que el usuario tome una decisión.
+- El enriquecimiento con datos de mercado depende de la cobertura de Finnhub, que es limitada para empresas de mercados emergentes o de menor capitalización bursátil. Esto deja incompleta la sección de valuación relativa justamente en los casos donde el análisis fundamental aportaría más valor, dado que son empresas con menor cobertura de analistas tradicionales.
 
 Un desarrollo más extenso de limitaciones y oportunidades de mejora está disponible en la sección **Análisis crítico** del informe.
 
